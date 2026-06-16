@@ -6,8 +6,8 @@ Release/
 *.user.*
 
 # Binary files
-#*.exe
-#*.dll
+*.exe
+*.dll
 *.lib
 *.pdb
 *.exp
