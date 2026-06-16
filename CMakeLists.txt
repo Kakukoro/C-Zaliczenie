@@ -2,60 +2,69 @@ cmake_minimum_required(VERSION 3.16)
 
 project(BioAnalyzerApp VERSION 0.1 LANGUAGES CXX)
 
+# Enable Qt meta-object compiler and UI compiler
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+# Require C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Find Qt (supports Qt5 and Qt6)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
 
+# --- Add the DLL subproject ---
+add_subdirectory(BioAnalyzerDLL)
+
+# --- Translation files ---
 set(TS_FILES BioAnalyzerApp_pl_PL.ts)
 
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+    qt_create_translation(QM_FILES ${CMAKE_CURRENT_SOURCE_DIR} ${TS_FILES})
+else()
+    qt5_create_translation(QM_FILES ${CMAKE_CURRENT_SOURCE_DIR} ${TS_FILES})
+endif()
+
+# --- Qt app sources ---
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
-        ${TS_FILES}
+    main.cpp
+    mainwindow.cpp
+    mainwindow.h
+    mainwindow.ui
+    ${QM_FILES}  # Include translation files
 )
 
+# --- Create the Qt executable ---
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(BioAnalyzerApp
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET BioAnalyzerApp APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-
-    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 else()
     if(ANDROID)
-        add_library(BioAnalyzerApp SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
+        add_library(BioAnalyzerApp SHARED ${PROJECT_SOURCES})
     else()
-        add_executable(BioAnalyzerApp
-            ${PROJECT_SOURCES}
-        )
+        add_executable(BioAnalyzerApp ${PROJECT_SOURCES})
     endif()
-
-    qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
+# Link Qt libraries
 target_link_libraries(BioAnalyzerApp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
+# --- Copy the DLL to the output directory (Windows only) ---
+if(WIN32)
+    add_custom_command(TARGET BioAnalyzerApp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:BioAnalyzerDLL>"  # Source: Built DLL
+            "$<TARGET_FILE_DIR:BioAnalyzerApp>/BioAnalyzer.dll"  # Destination: Next to the .exe
+    )
+endif()
+
+# --- macOS/iOS bundle settings ---
 if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.BioAnalyzerApp)
+    set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.BioAnalyzerApp)
 endif()
 set_target_properties(BioAnalyzerApp PROPERTIES
     ${BUNDLE_ID_OPTION}
@@ -65,6 +74,7 @@ set_target_properties(BioAnalyzerApp PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+# --- Installation (optional) ---
 include(GNUInstallDirs)
 install(TARGETS BioAnalyzerApp
     BUNDLE DESTINATION .
@@ -72,6 +82,7 @@ install(TARGETS BioAnalyzerApp
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
+# Finalize Qt6 executable
+if(${QT_VERSION_MAJOR} EQUAL 6)
     qt_finalize_executable(BioAnalyzerApp)
 endif()
