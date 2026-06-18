@@ -1,12 +1,18 @@
 // BioAnalyzerDLL.cpp
-#include "pch.h"
-#include "BioAnalyzerDLL.h"
 #include <string>
 #include <map>
 #include <vector>
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+
+// Bezpieczne włączanie nagłówków Windowsa – tylko na systemie Windows
+#ifdef _WIN32
+#include "pch.h"
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT __attribute__((visibility("default")))
+#endif
 
 // --- Original logic from your script ---
 std::string rozpoznajTypImpl(const std::string& seq) {
@@ -56,7 +62,6 @@ std::string transkrypcjaImpl(const std::string& dna) {
     std::string rna = dna;
     for (char& c : rna) {
         if (toupper(c) == 'T') c = 'U';
-        else if (toupper(c) == 't') c = 'u';
     }
     return rna;
 }
@@ -88,7 +93,7 @@ std::string translacjaImpl(const std::string& rna) {
         {"AAG", 'K'}, {"AGU", 'S'}, {"AGC", 'S'}, {"AGA", 'R'}, {"AGG", 'R'},
         {"GUU", 'V'}, {"GUC", 'V'}, {"GUA", 'V'}, {"GUG", 'V'}, {"GCU", 'A'},
         {"GCC", 'A'}, {"GCA", 'A'}, {"GCG", 'A'}, {"GAU", 'D'}, {"GAC", 'D'},
-        {"GAA", 'E'}, {"GAG", 'E'}, {"GGU", 'G'}, {"GGC", 'G'}, {"GGA", 'G'},
+        {"GAA", 'E'}, {"GGU", 'G'}, {"GGC", 'G'}, {"GGA", 'G'},
         {"GGG", 'G'}, {"UAA", '*'}, {"UAG", '*'}, {"UGA", '*'}
     };
 
@@ -99,11 +104,11 @@ std::string translacjaImpl(const std::string& rna) {
         if (kodony.count(kodon)) {
             char aminokwas = kodony[kodon];
             if (aminokwas == '*') {
-                bialko += "[Kodon STOP na pozycji " + std::to_string(i) + "]";
+                bialko += "[Kodon STOP]";
                 break;
             }
             if (aminokwas == 'M' && i == 0)
-                bialko += "[Kodon START na pozycji " + std::to_string(i) + "]";
+                bialko += "[START]";
             bialko += aminokwas;
         }
     }
@@ -129,15 +134,14 @@ std::string analizujMutacjeImpl(const std::string& seq1, const std::string& seq2
     std::ostringstream oss;
     oss << "\n--- ANALIZA MUTACJI ---\n";
     if (seq1.length() != seq2.length()) {
-        oss << "Sekwencje maja rozne dlugosci. Porownanie uproszczone (pozycja po pozycji) niemozliwe.\n";
+        oss << "Sekwencje maja rozne dlugosci.\n";
         return oss.str();
     }
 
     int mutacje = 0;
     for (size_t i = 0; i < seq1.length(); ++i) {
         if (toupper(seq1[i]) != toupper(seq2[i])) {
-            oss << "Mutacja (Substytucja) na pozycji " << i
-                << ": " << seq1[i] << " -> " << seq2[i] << "\n";
+            oss << "Mutacja na pozycji " << i << ": " << seq1[i] << " -> " << seq2[i] << "\n";
             mutacje++;
         }
     }
@@ -145,40 +149,91 @@ std::string analizujMutacjeImpl(const std::string& seq1, const std::string& seq2
     return oss.str();
 }
 
-// --- Exported C functions ---
+// --- NOWA LOGIKA GENEROWANIA DANYCH POD WYKRESY ---
+std::string pobierzSkladPercentImpl(const std::string& seq) {
+    if (seq.empty()) return "0,0,0,0";
+    double a = 0, t = 0, g = 0, c = 0, total = 0;
+    for (char ch : seq) {
+        char uc = toupper(ch);
+        if (uc == 'A') { a++; total++; }
+        else if (uc == 'T' || uc == 'U') { t++; total++; }
+        else if (uc == 'G') { g++; total++; }
+        else if (uc == 'C') { c++; total++; }
+    }
+    if (total == 0) return "0,0,0,0";
+    std::ostringstream oss;
+    oss << (a/total)*100 << "," << (t/total)*100 << "," << (g/total)*100 << "," << (c/total)*100;
+    return oss.str();
+}
+
+std::string obliczGCOknoImpl(const std::string& seq, int windowSize) {
+    if (seq.empty() || windowSize <= 0) return "0";
+    std::ostringstream oss;
+    for (size_t i = 0; i + windowSize <= seq.length(); ++i) {
+        double gc = 0;
+        for (int j = 0; j < windowSize; ++j) {
+            char uc = toupper(seq[i + j]);
+            if (uc == 'G' || uc == 'C') gc++;
+        }
+        oss << (gc / windowSize) * 100 << (i + windowSize < seq.length() ? "," : "");
+    }
+    return oss.str();
+}
+
+
+// --- Eksportowane funkcje C (widziane przez aplikację Qt) ---
 extern "C" {
-    BIOANALYZERDLL_API const char* rozpoznajTyp(const char* seq) {
-        static std::string result = rozpoznajTypImpl(seq);
-        return result.c_str();
-    }
+EXPORT const char* rozpoznajTyp(const char* seq) {
+    static std::string result;
+    result = rozpoznajTypImpl(seq);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* analizujSekwencje(const char* seq) {
-        static std::string result = analizujSekwencjeImpl(seq);
-        return result.c_str();
-    }
+EXPORT const char* analizujSekwencje(const char* seq) {
+    static std::string result;
+    result = analizujSekwencjeImpl(seq);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* transkrypcja(const char* dna) {
-        static std::string result = transkrypcjaImpl(dna);
-        return result.c_str();
-    }
+EXPORT const char* transkrypcja(const char* dna) {
+    static std::string result;
+    result = transkrypcjaImpl(dna);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* nicKomplementarna(const char* dna) {
-        static std::string result = nicKomplementarnaImpl(dna);
-        return result.c_str();
-    }
+EXPORT const char* nicKomplementarna(const char* dna) {
+    static std::string result;
+    result = nicKomplementarnaImpl(dna);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* translacja(const char* rna) {
-        static std::string result = translacjaImpl(rna);
-        return result.c_str();
-    }
+EXPORT const char* translacja(const char* rna) {
+    static std::string result;
+    result = translacjaImpl(rna);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* wyszukajMotyw(const char* seq, const char* motyw) {
-        static std::string result = wyszukajMotywImpl(seq, motyw);
-        return result.c_str();
-    }
+EXPORT const char* wyszukajMotyw(const char* seq, const char* motyw) {
+    static std::string result;
+    result = wyszukajMotywImpl(seq, motyw);
+    return result.c_str();
+}
 
-    BIOANALYZERDLL_API const char* analizujMutacje(const char* seq1, const char* seq2) {
-        static std::string result = analizujMutacjeImpl(seq1, seq2);
-        return result.c_str();
-    }
+EXPORT const char* analizujMutacje(const char* seq1, const char* seq2) {
+    static std::string result;
+    result = analizujMutacjeImpl(seq1, seq2);
+    return result.c_str();
+}
+
+EXPORT const char* pobierzSkladPercent(const char* seq) {
+    static std::string result;
+    result = pobierzSkladPercentImpl(seq);
+    return result.c_str();
+}
+
+EXPORT const char* obliczGCOkno(const char* seq, int windowSize) {
+    static std::string result;
+    result = obliczGCOknoImpl(seq, windowSize);
+    return result.c_str();
+}
 }
