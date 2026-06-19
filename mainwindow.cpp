@@ -103,7 +103,7 @@ bool MainWindow::zaladujDLL()
     QString appDir = QCoreApplication::applicationDirPath();
 
     // Qt automatycznie doda .dylib na Macu, .so na Linuxie i .dll na Windowsie
-    dll = new QLibrary(appDir + "/libBioAnalyzer", this);
+    dll = new QLibrary(appDir + "/BioAnalyzerDLL/libBioAnalyzer", this);
 
     qDebug() << "Próba załadowania biblioteki z:" << dll->fileName();
     if (!dll->load()) {
