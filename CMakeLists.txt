@@ -11,14 +11,12 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Qt (supports Qt5 and Qt6)
+# Find Qt (Qt5 and Qt6)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
 
-# --- Add the DLL subproject ---
 add_subdirectory(BioAnalyzerDLL)
 
-# --- Translation files ---
 set(TS_FILES BioAnalyzerApp_pl_PL.ts)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -27,7 +25,7 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_CURRENT_SOURCE_DIR} ${TS_FILES})
 endif()
 
-# --- Qt app sources ---
+
 set(PROJECT_SOURCES
     main.cpp
     mainwindow.cpp
@@ -53,7 +51,7 @@ endif()
 # Link Qt libraries
 target_link_libraries(BioAnalyzerApp PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
-# --- Copy the DLL to the output directory (Windows only) ---
+# Copy the DLL
 if(WIN32)
     add_custom_command(TARGET BioAnalyzerApp POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
@@ -74,7 +72,7 @@ set_target_properties(BioAnalyzerApp PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-# --- Installation (optional) ---
+# Installation
 include(GNUInstallDirs)
 install(TARGETS BioAnalyzerApp
     BUNDLE DESTINATION .

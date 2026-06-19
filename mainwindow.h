@@ -34,7 +34,7 @@ private:
 
     QLibrary *dll;
 
-    // Typedefy dla funkcji z DLL (polskie nazwy!)
+    // funkcje z DLL
     typedef const char *(*RozpoznajTypFunc)(const char *);
     typedef const char *(*AnalizujSekwencjeFunc)(const char *);
     typedef const char *(*TranskrypcjaFunc)(const char *);

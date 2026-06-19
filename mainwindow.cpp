@@ -12,7 +12,7 @@
 #include <QTextStream>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), dll(nullptr) // Dobra praktyka: inicjalizacja wskaźnika
+    : QMainWindow(parent), dll(nullptr)
 {
     // Główne okno i układ
     QWidget *centralWidget = new QWidget(this);
@@ -31,12 +31,12 @@ MainWindow::MainWindow(QWidget *parent)
     seq1Layout->addWidget(loadSeq1Btn);
     inputLayout->addLayout(seq1Layout);
 
-    // 2. Motyw (zostaje bez zmian, bo motywy wpisuje się ręcznie)
+    // 2. Motyw
     motifInput = new QLineEdit(this);
     motifInput->setPlaceholderText("Wprowadź motyw do wyszukania");
     inputLayout->addWidget(motifInput);
 
-    // 3. Druga sekwencja (mutacja) + przycisk
+    // 3. Druga sekwencja
     QHBoxLayout *seq2Layout = new QHBoxLayout();
     secondSequenceInput = new QLineEdit(this);
     secondSequenceInput->setPlaceholderText("Wprowadź drugą sekwencję do porównania mutacji");
@@ -48,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Połączenie nowych przycisków z funkcjami
     connect(loadSeq1Btn, &QPushButton::clicked, this, &MainWindow::wczytajPlikGlowny);
     connect(loadSeq2Btn, &QPushButton::clicked, this, &MainWindow::wczytajPlikMutacji);
-    // Grupa wyjścia
+
     QGroupBox *outputGroup = new QGroupBox("Wynik", this);
     QVBoxLayout *outputLayout = new QVBoxLayout(outputGroup);
 
@@ -76,7 +76,6 @@ MainWindow::MainWindow(QWidget *parent)
     buttonsLayout->addWidget(mutationButton);
     buttonsLayout->addWidget(chartsButton);
 
-    // Dodaj grupy do głównego układu
     mainLayout->addWidget(inputGroup);
     mainLayout->addWidget(buttonsGroup);
     mainLayout->addWidget(outputGroup);
@@ -102,7 +101,7 @@ bool MainWindow::zaladujDLL()
 {
     QString appDir = QCoreApplication::applicationDirPath();
 
-    // Qt automatycznie doda .dylib na Macu, .so na Linuxie i .dll na Windowsie
+    // Qt automatycznie doda .dylib na Macu, .so na Linuxie i .dll na Windows
     dll = new QLibrary(appDir + "/BioAnalyzerDLL/libBioAnalyzer", this);
 
     qDebug() << "Próba załadowania biblioteki z:" << dll->fileName();
@@ -112,7 +111,6 @@ bool MainWindow::zaladujDLL()
     }
     qDebug() << "Biblioteka załadowana pomyślnie!";
 
-    // Rozwiąż funkcje (Przeniesione do wewnątrz metody!)
     rozpoznajTypFunc = (RozpoznajTypFunc) dll->resolve("rozpoznajTyp");
     analizujSekwencjeFunc = (AnalizujSekwencjeFunc) dll->resolve("analizujSekwencje");
     transkrypcjaFunc = (TranskrypcjaFunc) dll->resolve("transkrypcja");
@@ -169,7 +167,7 @@ void MainWindow::pobierzNicKomplementarna()
 
 void MainWindow::tlumaczRNA()
 {
-    QString rna = sequenceInput->text().toUpper().replace("T", "U"); // Konwersja DNA na RNA w locie dla bezpieczeństwa
+    QString rna = sequenceInput->text().toUpper().replace("T", "U");
     if (rna.isEmpty()) {
         output->append("Wprowadź sekwencję RNA.");
         return;
@@ -219,18 +217,18 @@ void MainWindow::analizujMutacje()
 std::map<char, double> MainWindow::obliczSkladProcentowy(const QString &sekwencja)
 {
     std::map<char, double> sklad;
-    QString seq = sekwencja.toUpper(); // Ujednolicamy wielkość liter
+    QString seq = sekwencja.toUpper();
     int dlugosc = seq.length();
 
     if (dlugosc == 0) return sklad;
 
-    // Zliczanie wystąpień
+
     for (int i = 0; i < dlugosc; ++i) {
         char nukleotyd = seq[i].toLatin1();
         sklad[nukleotyd]++;
     }
 
-    // Zamiana na procenty
+
     for (auto &para : sklad) {
         para.second = (para.second / dlugosc) * 100.0;
     }
@@ -238,7 +236,7 @@ std::map<char, double> MainWindow::obliczSkladProcentowy(const QString &sekwencj
     return sklad;
 }
 
-// Funkcja obliczająca ogólny procent GC w sekwencji
+
 double MainWindow::obliczZawartoscGC(const QString &sekwencja)
 {
     QString seq = sekwencja.toUpper();
@@ -270,44 +268,43 @@ void MainWindow::pokazWykresy()
         return;
     }
 
-    // 1. Obliczenia danych
+
     double gc = obliczZawartoscGC(seq);
     std::map<char, double> sklad = obliczSkladProcentowy(seq);
 
-    // 2. Tworzenie okna dialogowego
+
     QDialog *chartDialog = new QDialog(this);
     chartDialog->setWindowTitle("Statystyki Bioinformatyczne");
-    chartDialog->setFixedSize(550, 450); // Stały, bezpieczny rozmiar okna
+    chartDialog->setFixedSize(550, 450);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(chartDialog);
 
-    // 3. Nagłówek okna
+
     QLabel *titleLabel = new QLabel("ANALIZA SKŁADU I ZAWARTOŚCI GC", chartDialog);
     titleLabel->setStyleSheet("font-weight: bold; font-size: 16px; color: #ffffff; margin-bottom: 15px;");
     titleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(titleLabel);
 
-    // 4. PRZYGOTOWANIE RYSUNKU (Klasyczny Wykres Słupkowy z osiami X i Y)
-    // Tworzymy "płótno" o wymiarach 500x300 pikseli, na którym namalujemy wykres
+
     QPixmap pixmap(500, 300);
-    pixmap.fill(Qt::white); // Białe tło wykresu
+    pixmap.fill(Qt::white);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing); // Wygładzanie krawędzi
 
-    // Definiujemy marginesy i obszar wykresu
-    int originX = 50;  // Gdzie zaczyna się oś Y
-    int originY = 250; // Gdzie zaczyna się oś X (na dole)
+    // Marginesy
+    int originX = 50;
+    int originY = 250;
     int graphHeight = 200;
     int graphWidth = 420;
 
     // Rysowanie osi układu współrzędnych (Czarny kolor, grubość 2px)
     QPen axisPen(Qt::black, 2);
     painter.setPen(axisPen);
-    painter.drawLine(originX, originY, originX + graphWidth, originY); // Oś X
-    painter.drawLine(originX, originY, originX, originY - graphHeight); // Oś Y
+    painter.drawLine(originX, originY, originX + graphWidth, originY);
+    painter.drawLine(originX, originY, originX, originY - graphHeight);
 
-    // Rysowanie podziałek i linii pomocniczych na osi Y (0%, 50%, 100%)
+    // Linie pomocnicze
     QPen gridPen(Qt::lightGray, 1, Qt::DashLine);
     painter.setFont(QFont("Arial", 9));
 
@@ -321,7 +318,7 @@ void MainWindow::pokazWykresy()
         painter.drawText(originX - 40, y + 5, QString("%1%").arg(percent));
     }
 
-    // Dane do wykresu: Pary (Nazwa słupka, Wartość, Kolor)
+    // Dane do wykresu
     struct BarData {
         QString label;
         double value;
@@ -336,48 +333,47 @@ void MainWindow::pokazWykresy()
         {"GC", gc, QColor("#2ecc71")}          // Zielony
     };
 
-    // Jeśli sekwencja to RNA, zamień T na U
+   // RNA
     if (sklad['U'] > 0) {
-        bars[1] = {"U", sklad['U'], QColor("#e67e22")}; // Pomarańczowy dla U
+        bars[1] = {"U", sklad['U'], QColor("#e67e22")}; // Pomarańczowy
     }
 
     // Rysowanie słupków pionowych
     int barWidth = 45;
-    int spacing = 35; // Odstęp między słupkami
+    int spacing = 35;
 
     for (int i = 0; i < bars.size(); ++i) {
-        // Obliczamy pozycję X dla danego słupka
+        // Pozycja X dla danego słupka
         int x = originX + spacing + i * (barWidth + spacing);
 
-        // Skalujemy wysokość słupka (w zależności od wartości 0-100%)
+        // Skala wysokość słupka
         int barHeight = static_cast<int>((bars[i].value / 100.0) * graphHeight);
         int y = originY - barHeight;
 
-        // Rysowanie słupka (pionowy prostokąt)
+        // Rysowanie słupka
         painter.setPen(Qt::NoPen);
         painter.setBrush(bars[i].color);
         painter.drawRect(x, y, barWidth, barHeight);
 
-        // Rysowanie czarnego podpisu wartości NAD słupkiem (zawsze widoczny!)
+        // Rysowanie czarnego podpisu wartości
         painter.setPen(Qt::black);
         painter.setFont(QFont("Arial", 9, QFont::Bold));
         QString valueText = QString("%1%").arg(bars[i].value, 0, 'f', 1);
         painter.drawText(x - 2, y - 8, valueText);
 
-        // Rysowanie podpisu pod osią X (A, T, G, C, GC)
+        // Rysowanie podpisu pod osią X
         painter.setFont(QFont("Arial", 11, QFont::Bold));
         painter.drawText(x + (barWidth / 2) - 8, originY + 20, bars[i].label);
     }
 
-    painter.end(); // Kończymy rysowanie
+    painter.end();
 
-    // 5. Osadzenie rysunku w oknie dialogowym
+    // Osadzenie rysunku
     QLabel *chartLabel = new QLabel(chartDialog);
     chartLabel->setPixmap(pixmap);
     chartLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(chartLabel);
 
-    // 6. Przycisk Zamknij na dole
     QPushButton *closeButton = new QPushButton("Zamknij", chartDialog);
     closeButton->setStyleSheet("padding: 5px 15px; font-size: 12px;");
     connect(closeButton, &QPushButton::clicked, chartDialog, &QDialog::close);
@@ -388,14 +384,13 @@ void MainWindow::pokazWykresy()
 
 void MainWindow::wczytajPlikGlowny()
 {
-    // Okno wyboru pliku z filtrem na TXT i FASTA
+    // Okno wyboru pliku
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     "Wybierz plik z sekwencją (Dozwolone: .fasta, .fa, .txt)",
                                                     "",
                                                     "Pliki sekwencji (*.fasta *.fa *.txt);;Wszystkie pliki (*)");
 
-    if (fileName.isEmpty()) return; // Użytkownik anulował wybór
-
+    if (fileName.isEmpty()) return;
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QMessageBox::critical(this, "Błąd", "Nie można otworzyć pliku!");
@@ -410,21 +405,19 @@ void MainWindow::wczytajPlikGlowny()
         QString line = in.readLine().trimmed();
         if (line.isEmpty()) continue;
 
-        // Jeśli to format FASTA, ignorujemy linię nagłówka rozpoczynającą się od '>'
+        // format FASTA
         if (line.startsWith('>')) {
             czyFasta = true;
             continue;
         }
 
-        // Doklejamy linię do całości (FASTA często łamie sekwencję na wiele linii)
+        // dołącz linię
         czystaSekwencja += line;
     }
     file.close();
 
-    // Wrzucamy oczyszczony tekst do pierwszego okienka
     sequenceInput->setText(czystaSekwencja.toUpper());
 
-    // Małe powiadomienie dla użytkownika
     if (czyFasta) {
         output->append("Pomyślnie wczytano i przefiltrowano plik formatu FASTA.");
     } else {
@@ -434,7 +427,7 @@ void MainWindow::wczytajPlikGlowny()
 
 void MainWindow::wczytajPlikMutacji()
 {
-    // Dokładnie to samo dla drugiego pola (sekwencji z mutacją)
+    // Dokładnie to samo dla drugiego pola
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     "Wybierz plik z sekwencją mutacji (Dozwolone: .fasta, .fa, .txt)",
                                                     "",

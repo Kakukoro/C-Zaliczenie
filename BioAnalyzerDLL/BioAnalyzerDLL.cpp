@@ -6,7 +6,6 @@
 #include <cstring>
 #include <sstream>
 
-// Bezpieczne włączanie nagłówków Windowsa – tylko na systemie Windows
 #ifdef _WIN32
 #include "pch.h"
 #define EXPORT __declspec(dllexport)
@@ -14,7 +13,7 @@
 #define EXPORT __attribute__((visibility("default")))
 #endif
 
-// --- Original logic from your script ---
+
 std::string rozpoznajTypImpl(const std::string& seq) {
     bool maT = false;
     bool maU = false;
@@ -149,7 +148,6 @@ std::string analizujMutacjeImpl(const std::string& seq1, const std::string& seq2
     return oss.str();
 }
 
-// --- NOWA LOGIKA GENEROWANIA DANYCH POD WYKRESY ---
 std::string pobierzSkladPercentImpl(const std::string& seq) {
     if (seq.empty()) return "0,0,0,0";
     double a = 0, t = 0, g = 0, c = 0, total = 0;
@@ -181,7 +179,6 @@ std::string obliczGCOknoImpl(const std::string& seq, int windowSize) {
 }
 
 
-// --- Eksportowane funkcje C (widziane przez aplikację Qt) ---
 extern "C" {
 EXPORT const char* rozpoznajTyp(const char* seq) {
     static std::string result;
